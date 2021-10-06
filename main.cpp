@@ -21,8 +21,17 @@ enum { BUF_SIZE = 1024 };
 
 class Session : public std::enable_shared_from_this<Session> {
 public:
-    Session(tcp::socket socket, boost::asio::io_context& io_context, int timeout_, int client_id_,  int file_maxsize_,
-       const std::string& file_prefix_) : socket(std::move(socket)), timer(io_context), timeout(timeout_), client_id(client_id_), file(nullptr), file_bytes_write(file_maxsize_), file_id(0), file_maxsize(file_maxsize_), file_prefix(file_prefix_) {
+    Session(tcp::socket socket, boost::asio::io_context& io_context, int timeout_, int client_id_,  int file_maxsize_, const std::string& file_prefix_)
+    : socket(std::move(socket)),
+        timer(io_context),
+        timeout(timeout_),
+        client_id(client_id_),
+        file(nullptr),
+        file_bytes_write(file_maxsize_),
+        file_id(0),
+        file_maxsize(file_maxsize_),
+        file_prefix(file_prefix_)
+    {
         
         boost::posix_time::ptime time = boost::posix_time::second_clock::local_time();
         boost::posix_time::time_facet facet("%Y%m%d%H%M%S");
@@ -42,16 +51,20 @@ public:
     
     void Start() {
         DoRead();
-        
-        timer.expires_after(std::chrono::seconds(timeout));
-        timer.async_wait(std::bind(&Session::OnTimeout, shared_from_this(), std::placeholders::_1));
+        StartTimer();
     }
     
 private:
     
+    void StartTimer() {
+        timer.expires_after(std::chrono::seconds(timeout));
+        timer.async_wait(std::bind(&Session::OnTimeout, shared_from_this(), std::placeholders::_1));
+    }
+    
     void OnTimeout(boost::system::error_code const& ec) {
         if (ec == boost::asio::error::operation_aborted)
             return;
+        
         std::cout << "Cancel Session (client " << client_id << ")" << std::endl;
         socket.close();
     }
@@ -136,13 +149,13 @@ private:
     }
     
     void OnRead(boost::system::error_code ec, std::size_t length) {
-        timer.expires_after(std::chrono::seconds(timeout));
-        timer.async_wait(std::bind(&Session::OnTimeout, shared_from_this(), std::placeholders::_1));
+        StartTimer();
         
         if (!ec) {
             std::cout << "Read (client " << client_id << "): " << length << std::endl;
             DoWrite(length);
-        } else {
+        }
+        else {
             if (ec == boost::asio::error::eof) {
                 std::cerr << "Socket read EOF: " << ec.message() << std::endl;
             } else if (ec == boost::asio::error::operation_aborted) {
@@ -155,13 +168,13 @@ private:
         }
     }
     
-    void OnWrite(boost::system::error_code ec, std::size_t length) {
+    /*void OnWrite(boost::system::error_code ec, std::size_t length) {
         boost::ignore_unused(length);
         
         if (!ec) {
             DoRead();
         }
-    }
+    }*/
     
     tcp::socket socket;
     std::array<char, BUF_SIZE> buffer;
@@ -182,13 +195,20 @@ private:
 
 class Server {
 public:
-    Server(boost::asio::io_context& io_context_, int port_, int socket_timeout_, int file_maxsize_,
-    const std::string& file_prefix_)
-    : io_context(io_context_), acceptor(io_context_, tcp::endpoint(tcp::v4(), port_)), socket_timeout(socket_timeout_), client_sequence(0), file_maxsize(file_maxsize_), file_prefix(file_prefix_) {
+    
+    Server(boost::asio::io_context& io_context_, int port_, int socket_timeout_, int file_maxsize_, const std::string& file_prefix_)
+    : io_context(io_context_),
+        acceptor(io_context_, tcp::endpoint(tcp::v4(), port_)),
+        socket_timeout(socket_timeout_),
+        client_sequence(0),
+        file_maxsize(file_maxsize_),
+        file_prefix(file_prefix_)
+    {
         DoAccept();
     }
     
 private:
+    
     void DoAccept() {
         acceptor.async_accept(
             [this](boost::system::error_code ec, tcp::socket socket) {
