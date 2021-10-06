@@ -13,7 +13,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Boost 1.66+ required.
 set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_MULTITHREADED ON)
-find_package(Boost REQUIRED COMPONENTS system program_options date_time)
+find_package(Boost REQUIRED COMPONENTS system program_options date_time filesystem)
 
 add_executable(cogserver main.cpp)
 target_link_libraries(cogserver PUBLIC ${Boost_LIBRARIES})
